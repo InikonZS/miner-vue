@@ -5,16 +5,26 @@ import {calculateNearest, generateField, IVector2} from './logic';
 import {IGameFieldOptions} from './dto';
 
 const Lobby = Vue.extend({
+  data: function(){
+    return {
+      xSize:9,
+      ySize:9,
+      bombCount:9
+    }
+  },
   template: `
     <div>
       lobby
+      <input type="number" v-model="xSize">
+      <input type="number" v-model="ySize">
+      <input type="number" v-model="bombCount">
       <button v-on:click = "playButtonClick()"> start </button>
     </div>
   `,
   methods:{
     playButtonClick: function(){
       console.log('fdsd')
-      this.$emit('close', {xSize:10, ySize:10, bombCount:3});
+      this.$emit('close', {xSize:this.xSize, ySize:this.ySize, bombCount:this.bombCount});
     }
   }
 })
@@ -27,11 +37,9 @@ const Cell = Vue.extend({
     return {
       className:'cell',
       duration:'400ms',
-      //isOpened_: this.cellData.isOpened
     }
   },
   computed:{
-    //className: function () { return this.isOpened ? 'cell cell__opened' : 'cell'},
     textContent: function () {
       if (this.isOpened){
         return this.cellData.isBomb ? 'X' : this.cellData.value ? this.cellData.value.toString():''
@@ -56,39 +64,22 @@ const Cell = Vue.extend({
   methods:{
     click: function(){
       this.$emit('tryopen', this.cellData);
-      
-      this.open();
     },
 
     open: function():Promise<void>{
-      if (!this.isLocked){
-        return this.animateOpen(Math.random() * 900 + 2400);
-      }
+        return this.animateOpen(Math.random() * 400 + 400);
     },
   
-    animateOpen:  function(duration?:number){
-      if(this.isLocked){
-        return Promise.resolve();
-      }
-      this.lock();
-        if (duration){
+    animateOpen:  function(duration:number){
           this.duration = duration.toString()+'ms';
           this.className = this.isOpened ? 'cell cell__opened' : 'cell'
-        }
     },
 
     transitionEnd:  function(e:any){
       this.$emit('open', this.cellData);
     },
-  
-    lock:  function(){
-      this.isLocked = true;
-    },
-  
-    unlock:  function(){
-      this.isLocked = false;
-    }
   },
+
   beforeUpdate: function(){
     if (this.cellData.isOpened){
       this.open();
@@ -182,7 +173,7 @@ const GameField = Vue.extend({
     },
 
     isAwaiting: function(){
-      console.log(this.fieldState.flat(1).find(it=>it.isAwaiting==true)!=null? true: false);
+      //console.log(this.fieldState.flat(1).find(it=>it.isAwaiting==true)!=null? true: false);
       return this.fieldState.flat(1).find(it=>it.isAwaiting==true)!=null? true: false;
     },
 
@@ -243,8 +234,17 @@ const GameField = Vue.extend({
 })
 
 const VictoryScene = Vue.extend({
+  props:{
+    data:Object
+  },
+  computed:{
+    message: function(){
+      return this.data.result ? 'win' : 'lose';
+    }
+  },
   template: `
     <div>victory-scene
+      <div>{{message}}</div>
       <button v-on:click = "cycleButtonClick(true)">play again</button>
       <button v-on:click = "cycleButtonClick(false)">main menu</button>
     </div>
@@ -267,7 +267,7 @@ const app = new Vue({
         v-on:close = "finishButtonClick($event)" 
         v-bind:fieldData = "fieldData"> 
       </game-field>
-      <victory-scene v-if="currentPage == 'victory-scene'" v-on:close = "cycleButtonClick($event)"> </victory-scene>
+      <victory-scene v-bind:data="victoryData" v-if="currentPage == 'victory-scene'" v-on:close = "cycleButtonClick($event)"> </victory-scene>
     </div>
   `,
   data: function(){
@@ -277,7 +277,10 @@ const app = new Vue({
         ySize:3,
         bombCount:3
       },
-      currentPage: 'lobby'
+      currentPage: 'lobby',
+      victoryData:{
+        result:false
+      }
     }
   },
   methods:{
@@ -286,7 +289,9 @@ const app = new Vue({
       this.currentPage = 'game-field';
     },
     finishButtonClick: function (data:any){
-      this.currentPage = 'victory-scene'
+      this.victoryData = data;
+      this.currentPage = 'victory-scene';
+      
     },
     cycleButtonClick: function (data:any){
       if (data.result == false){
