@@ -1,37 +1,14 @@
 import Vue from 'vue';
 import './style.css';
 
-import {calculateNearest, generateField, IVector2} from './logic';
+import {calculateNearest, generateField, IVector2, traceFigure} from './logic';
 import {IGameFieldOptions} from './dto';
-
-const Lobby = Vue.extend({
-  data: function(){
-    return {
-      xSize:9,
-      ySize:9,
-      bombCount:9
-    }
-  },
-  template: `
-    <div>
-      lobby
-      <input type="number" v-model="xSize">
-      <input type="number" v-model="ySize">
-      <input type="number" v-model="bombCount">
-      <button v-on:click = "playButtonClick()"> start </button>
-    </div>
-  `,
-  methods:{
-    playButtonClick: function(){
-      console.log('fdsd')
-      this.$emit('close', {xSize:this.xSize, ySize:this.ySize, bombCount:this.bombCount});
-    }
-  }
-})
+import { PropValidator } from 'vue/types/options';
+import {Lobby} from './lobby/lobby'
 
 const Cell = Vue.extend({
   props:{
-    cellData: Object
+    cellData: Object// as PropValidator<ICellData>
   },
   data:function(){
     return {
@@ -101,7 +78,6 @@ const GameField = Vue.extend({
         x:j,
         y:i
       })));
-      //return fieldResult;
 
     return {
       fieldState: fieldResult,
@@ -122,31 +98,21 @@ const GameField = Vue.extend({
   `,
  
   methods:{
-    /*field: function(){
-      console.log(this.fieldData)
-      const minesData = generateField(this.fieldData.xSize, this.fieldData.ySize, this.fieldData.bombCount);
-      const fieldResult = minesData.map((it,i)=>it.map((jt, j)=>({
-        value:calculateNearest(minesData, {y:i, x:j}),
-        isBomb:jt
-      })));
-      return fieldResult;
-    },*/
+
     finishButtonClick: function(){
-     // console.log('fdsd')
      if (this.isAwaiting() == true) return;
      this.isFailed = true;
       this.fieldState = this.fieldState.map((it:any)=>it.map((jt:any)=>{
         return {...jt, isOpened:true, isAwaiting:!jt.isOpened}
       }))
-      //this.$emit('close', {result:true});
     },
+
     tryOpenCell: function(cellResult:any){
-     // console.log(cellResult);
      if (this.fieldState[cellResult.y][cellResult.x].isOpened) return
      if (this.isAwaiting() == true) return;
       this.fieldState[cellResult.y][cellResult.x].isAwaiting = true;
       this.fieldState[cellResult.y][cellResult.x].isOpened = true;
-      let fig = this.checkFigure({x:cellResult.x, y:cellResult.y});
+      let fig = this.checkFigure(this.fieldState, {x:cellResult.x, y:cellResult.y}, 0);
       if (fig.length>1){
         fig.forEach((it=>{
           if (this.fieldState[it.y][it.x].isOpened) return
@@ -157,11 +123,10 @@ const GameField = Vue.extend({
       if (cellResult.isBomb){
         this.isFailed = true;
       }
-     // this.fieldState = [...this.fieldState]
     },
+
     openCell: function(cellResult:any){
       this.fieldState[cellResult.y][cellResult.x].isAwaiting = false;
-     // if (cellResult.isBomb){
       if (this.isFailed == true && this.isAwaiting() == false){
         this.$emit('close', {result:false});
       }
@@ -169,11 +134,9 @@ const GameField = Vue.extend({
       if (this.isWin() && this.isAwaiting()==false){
         this.$emit('close', {result:true});
       }
-     // }
     },
 
     isAwaiting: function(){
-      //console.log(this.fieldState.flat(1).find(it=>it.isAwaiting==true)!=null? true: false);
       return this.fieldState.flat(1).find(it=>it.isAwaiting==true)!=null? true: false;
     },
 
@@ -181,53 +144,11 @@ const GameField = Vue.extend({
       return this.fieldState.flat().find(it=>it.isOpened == false && it.isBomb==false)==null? true: false;
     },
 
-    checkFigure: function(initialPoint:IVector2){
-      //console.log(this.cells[initialPoint.y][initialPoint.x].value);
-      if (this.fieldState[initialPoint.y][initialPoint.x].value !== 0){
-        return [];
-      }
-      const waveField = this.fieldState.map(it=>{
-        return it.map(jt=>{
-          return {value: jt.value, generation:jt.isLocked ? -1 :Number.MAX_SAFE_INTEGER}
-        })
-      });
-  
-      const moves:Array<IVector2> = [{x:0, y:1},{x:1, y:0}, {x:-1, y:0}, {x:0, y:-1},
-        {x:1, y:1},{x:1, y:-1}, {x:-1, y:1}, {x:-1, y:-1}];
-  
-      const trace = (points:Array<IVector2>, currentGen:number, figPoints:Array<any>): Array<any> =>{
-        let nextGen:Array<IVector2> = [];
-        points.forEach(point=>{
-          moves.forEach(move=>{
-            let moved: IVector2 = {x:point.x + move.x, y: point.y + move.y};
-            if (moved.y>=0 && moved.x>=0 && moved.y<waveField.length && moved.x<waveField[0].length){
-              let cell = waveField[moved.y][moved.x];
-              if (cell && cell.generation > currentGen && cell.value == 0){
-                nextGen.push(moved); 
-                cell.generation = currentGen;
-                figPoints.push(this.fieldState[moved.y][moved.x]);
-                //this.cells[moved.y][moved.x].animateOpen();
-                //count+=1;
-              } else {
-                if (cell && cell.generation > currentGen && cell.value !=0){
-                  cell.generation = currentGen;
-                  figPoints.push(this.fieldState[moved.y][moved.x]);
-                  //this.cells[moved.y][moved.x].animateOpen();
-                }
-              }
-            }
-          });
-        });
-        if (nextGen.length){
-          return trace(nextGen, currentGen+1, figPoints);
-        } else {
-          return figPoints;
-        }
-      }
-      
-      return trace([initialPoint], 0, []);
+    checkFigure: function(field:Array<Array<{x:number, y:number, value:number}>>, initialPoint:IVector2, fillValue:number){
+      return traceFigure(field, initialPoint, fillValue);
     }
   },
+
   components:{
     cell: Cell
   }
@@ -308,7 +229,5 @@ const app = new Vue({
     "victory-scene": VictoryScene
   },
 });
-
-
 
 console.log("Hello World!");

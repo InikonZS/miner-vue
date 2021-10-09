@@ -47,3 +47,46 @@ export function generateField(xSize:number, ySize:number, bombCount:number): Arr
 
   return result;
 }
+
+export function traceFigure(field:Array<Array<{x:number, y:number, value:number}>>, initialPoint:IVector2, fillValue:number){
+  if (field[initialPoint.y][initialPoint.x].value !== fillValue){
+    return [];
+  }
+  const waveField:Array<Array<{value:number, generation:number}>> = field.map(it=>{
+    return it.map(jt=>{
+      return {value: jt.value, generation:Number.MAX_SAFE_INTEGER}
+    })
+  });
+
+  const moves:Array<IVector2> = [{x:0, y:1},{x:1, y:0}, {x:-1, y:0}, {x:0, y:-1},
+    {x:1, y:1},{x:1, y:-1}, {x:-1, y:1}, {x:-1, y:-1}];
+
+  const trace = (points:Array<IVector2>, currentGen:number, figPoints:Array<any>): Array<any> =>{
+    let nextGen:Array<IVector2> = [];
+    points.forEach(point=>{
+      moves.forEach(move=>{
+        let moved: IVector2 = {x:point.x + move.x, y: point.y + move.y};
+        if (moved.y>=0 && moved.x>=0 && moved.y<waveField.length && moved.x<waveField[0].length){
+          let cell = waveField[moved.y][moved.x];
+          if (cell && cell.generation > currentGen && cell.value == 0){
+            nextGen.push(moved); 
+            cell.generation = currentGen;
+            figPoints.push({y:moved.y, x:moved.x});
+          } else {
+            if (cell && cell.generation > currentGen && cell.value !=0){
+              cell.generation = currentGen;
+              figPoints.push({y:moved.y, x:moved.x});
+            }
+          }
+        }
+      });
+    });
+    if (nextGen.length){
+      return trace(nextGen, currentGen+1, figPoints);
+    } else {
+      return figPoints;
+    }
+  }
+  
+  return trace([initialPoint], 0, []);
+}
