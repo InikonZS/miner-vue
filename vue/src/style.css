@@ -1,0 +1,35 @@
+.field{
+  transition-duration: 3000ms;
+}
+
+.field__closed{
+  transform: rotateY(180deg);
+}
+
+.row{
+  display: flex;
+  perspective: 1000px;
+}
+
+.cell{
+  width: 30px;
+  height: 30px;
+  margin: 3px;
+  border: 1px solid #000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition-duration: 400ms;
+  transform: rotateY(-180deg);
+}
+
+.cell__opened{
+  transform: rotateY(0deg);
+}
+
+.gamefield{
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: flex-start;
+}
